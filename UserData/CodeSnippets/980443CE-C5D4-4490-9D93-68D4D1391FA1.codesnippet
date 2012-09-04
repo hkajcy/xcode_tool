@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDECodeSnippetCompletionPrefix</key>
+	<string>define</string>
+	<key>IDECodeSnippetCompletionScopes</key>
+	<array>
+		<string>All</string>
+	</array>
+	<key>IDECodeSnippetContents</key>
+	<string>#ifndef &lt;#names#&gt;
+#define k&lt;#names#&gt;_For_iPhone_Portrait                      &lt;#value#&gt;
+#define k&lt;#names#&gt;_For_iPhone_Landscape                     &lt;#value#&gt;
+
+#define k&lt;#names#&gt;_For_iPad_Portrait                        &lt;#value#&gt;
+#define k&lt;#names#&gt;_For_iPad_Landscape                       &lt;#value#&gt;
+
+#define kCur&lt;#name#&gt;(orientation)                          UIInterfaceOrientationIsPortrait(orientation) ? \
+                        kPortraitValue(&lt;#name#&gt;) : \
+                        kLandscapeValue(&lt;#name#&gt;)
+#endif</string>
+	<key>IDECodeSnippetIdentifier</key>
+	<string>980443CE-C5D4-4490-9D93-68D4D1391FA1</string>
+	<key>IDECodeSnippetLanguage</key>
+	<string>Xcode.SourceCodeLanguage.Objective-C-Plus-Plus</string>
+	<key>IDECodeSnippetTitle</key>
+	<string>define_for_iphone or define_for_ipad</string>
+	<key>IDECodeSnippetUserSnippet</key>
+	<true/>
+	<key>IDECodeSnippetVersion</key>
+	<integer>2</integer>
+</dict>
+</plist>
