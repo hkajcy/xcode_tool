@@ -1,0 +1,37 @@
+//
+//  eVoiceTimer.h
+//  DocinBookReader
+//
+//  Created by docin on 11-12-8.
+//  Copyright (c) 2011年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@interface eVoiceTimer : NSObject 
+{
+    UIBackgroundTaskIdentifier timerTask;
+    NSTimer *timer;
+    BOOL hasTimerInBackground;
+    NSThread* timerThread;
+}
+
+/* 启动定时器，以秒为时间单位 */
++ (void)starteVoiceTimer:(NSTimeInterval)second;
+
+/* 启动定时器，可先通过setTimerInterval:设置播放时长 */
++ (void)starteVoiceTimer;
+
+/* 暂停定时器 */
++ (void)pauseeVoiceTimer;
+
+/* 恢复定时器 */
++ (void)resumeeVoiceTimer;
+
+/* 停止定时器 */
++ (void)stopeVoiceTimer;
+
+/* 设置播放时长，以秒为时间单位 */
++ (void)setTimerInterval:(NSTimeInterval)second;
+
+@end

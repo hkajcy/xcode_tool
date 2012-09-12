@@ -1,0 +1,234 @@
+/*
+ * Copyright (C) 2004-2010 Geometer Plus <contact@geometerplus.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ */
+
+#import "ZipArchive.h"
+
+#import "OEBMetaInfoReader.h"
+#import "OEBPlugin.h"
+#import "book.h"
+#import "OEBSpine.h"
+#import "OEBBookModel.h"
+#import "macros_for_IOS_hk.h"
+
+#define OPF_STR     (@"opf")
+#define OEBZIP_STR  (@"oebzip")
+#define EPUB_STR    (@"epub")
+
+@implementation OEBPlugin
+
+- (id) init
+{
+    if (self = [super init]) 
+    {
+        
+    }
+    
+    return self;
+}
+
+- (BOOL) acceptsFile:(NSString*)filepath
+{
+    NSString* externName = [filepath pathExtension];
+    
+    if (externName)
+    {
+        return [externName compare:OPF_STR options:NSCaseInsensitiveSearch] == NSOrderedSame 
+        || [externName compare:OEBZIP_STR options:NSCaseInsensitiveSearch] == NSOrderedSame
+        || [externName compare:EPUB_STR options:NSCaseInsensitiveSearch] == NSOrderedSame;
+    }
+    else
+    {
+        return false;
+    } 
+}
+
+- (NSString*) ncxPath
+{
+    NSString* ncxPath = nil ;
+        
+    NSArray* ncxArray = [_zip pathArrayWithExternName:@"ncx"];
+    
+    if ([ncxArray count])
+    {
+        ncxPath = [ncxArray objectAtIndex:0];
+    }
+    
+    return ncxPath;
+}
+
+- (NSString*) opfPath
+{
+    NSData* tData = [_zip readFileWithPath:@"META-INF/container.xml"];
+    NSString* opfPath =  [OEBMetaInfoReader opfNameWithContainer:tData];
+    
+    if (opfPath == nil || [opfPath length] == 0)
+    {
+        debugLog(@"there is no filePath META-INF/container.xml");
+        
+        NSArray* opfArray = [_zip pathArrayWithExternName:@"opf"];
+        
+        if ([opfArray count])
+        {
+            opfPath = [opfArray objectAtIndex:0];
+        }
+        else
+        {
+            [NSException raise:NSObjectNotAvailableException format:@"找不到opf文件"];
+            opfPath = nil;
+        }
+    }
+    
+    return opfPath;
+}
+
+- (OEBSpine*) createSpineArray:(NSString*)opfPath withBasePath:(NSString *)basePath;
+{
+
+    NSData* tData = [_zip readFileWithPath:opfPath];
+    OEBSpine* spine = [OEBMetaInfoReader createSpine:tData withBasePath:basePath withZipArchive:_zip];
+
+    
+
+    if (spine == nil)
+    {
+        [NSException raise:NSObjectNotAvailableException format:@"there is no spine"];
+    }
+    [spine arrangeSpine];
+    
+
+    
+
+    return spine;
+}
+
+- (NSMutableDictionary*) createMetaInfoDic:(NSString*)opfPath
+{
+    NSData* tData = [_zip readFileWithPath:opfPath];
+    
+    return [OEBMetaInfoReader createMetaInfoDic:tData];
+}
+
+- (BOOL) readMetaInfo:(book*) book
+{
+    @synchronized (self)
+    {
+        @try
+        {
+            SAFE_RELEASE(_zip);
+            _zip = [[ZipArchive alloc] initWithPath:[book filePath]];
+            
+            
+            NSString* opfPath = [self opfPath];
+            
+            int index = [opfPath rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"/\\"]].location;
+            
+            NSString* fatherPath = @"";
+            if (index != NSNotFound)
+            {
+                fatherPath = [opfPath substringToIndex:index+1];
+            }
+            
+            book.mySpine = [self createSpineArray:opfPath withBasePath:fatherPath];
+            
+            OEBBookModel* oebBookModel = [[OEBBookModel alloc] initWithZipArchive:_zip
+                                                                   WithOEBLocation:nil 
+                                                                      WithOEBSpine:(OEBSpine*)book.mySpine
+                                                                    withFatherPath:fatherPath
+                                                                        withBookID:book.bookID];
+            
+            
+            book.myMetaInfoDic = [self createMetaInfoDic:opfPath];
+            oebBookModel.bookTitle = [book bookTittle];
+            book.myBookModel = oebBookModel;
+            [oebBookModel release];
+            
+            //ncxPath start
+            NSString* ncxPath = [self ncxPath];
+            if (ncxPath)
+            {
+                NSData* ncxData = [_zip readFileWithPath:ncxPath];
+                if (!ncxData || [ncxData length] == 0)
+                {
+                    debugLog(@"no ncx");
+                }
+                
+                NSArray* paramArray = [NSArray arrayWithObjects:ncxData,book.mySpine.spineArray, nil];
+                [OEBMetaInfoReader performSelectorInBackground:@selector(ncxRead:) withObject:paramArray];
+            }
+            //ncxPath stop
+            
+            
+            //coverImage start
+            NSString* coverImageHref = [book.myMetaInfoDic objectForKey:coverImageHref_STR];
+            NSData* data = nil; //图片的data
+            //如果查找到了coverImageHref的路径
+            if (coverImageHref)
+            {
+                data = [_zip readFileWithPath:[fatherPath stringByAppendingString:coverImageHref]];
+            }
+            else
+            {
+                NSData* jpgData = [_zip readFileWithFileName:@"cover.jpg"];
+                NSData* pngData = [_zip readFileWithFileName:@"cover.png"];
+                NSData* jpegData = [_zip readFileWithFileName:@"cover.jpeg"];
+                
+                if (jpgData && [jpgData length])
+                {
+                    data = jpgData;
+                }
+                
+                if (pngData && [pngData length])
+                {
+                    data = pngData;
+                }
+                
+                if (jpegData && [jpegData length])
+                {
+                    data = jpegData;
+                }
+            }
+            
+            if (data && [data length])
+            {
+                UIImage* coverImage = [UIImage imageWithData:data];
+                if (nil != coverImage)
+                {
+                    [book.myMetaInfoDic setObject:coverImage forKey:coverImage_STR];
+                }
+            }
+            //coverImage stop
+            
+            
+        }
+        @catch (NSException *exception)
+        {
+            debugLog(@"%@",exception.reason);
+            return false;
+        }
+    }
+    
+    return YES;
+}
+
+- (void)dealloc
+{
+    SAFE_RELEASE(_zip);
+    [super dealloc];
+}
+@end

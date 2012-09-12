@@ -1,0 +1,48 @@
+//
+//  bookMark.h
+//  DocinBookReader
+//
+//  Created by zhao liang on 11-9-14.
+//  Copyright 2011年 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+#define _KEY_BOOKMARKCONTENT                        @"title"
+#define _KEY_BOOKMARKTIME                           @"time"
+#define _KEY_BOOKMARKLOCATION                       @"markIndex"
+
+@class formatLocation;
+@protocol BookMarkDBProtocol;
+@interface bookMark : NSObject
+{
+    NSMutableArray *_markArray;
+    NSUInteger bookid;
+    id<BookMarkDBProtocol> _delegate;
+}
+
+@property(readonly, nonatomic) NSMutableArray *markArray;
+@property(assign, nonatomic) NSUInteger bookid;
+@property (assign,nonatomic) id<BookMarkDBProtocol> delegate;
+- (id)initWithID:(int)bookID;
+//- (void)addBookMark:(NSUInteger) markIndex WithTitle:(NSString *) title;
+- (void)addBookMark:(NSMutableDictionary*) markDic;
+- (void)delBookMark:(formatLocation*) location;
+- (void)getBookMark;
+
+@end
+
+@protocol BookMarkDBProtocol <NSObject>
+
+
+- (BOOL)addBookMarkToWareHouseFrom:(NSDictionary *) bookMark WithBookid:(NSUInteger) integer;
+- (BOOL)delBookMarkFromWareHouseFrom:(formatLocation *) formaLoc WithBookid:(NSUInteger) integer;
+- (NSMutableArray *)getBooKMarkFromWareHouseWithBookid:(NSUInteger) integer;
+- (BOOL)updateReadHistoryToWareHouseWithBookid:(NSUInteger)bookid WithReadHistory:(id) formatLoc;
+- (id)getReadHistoryFromWareHouseWithBookid:(NSUInteger)bookid;
+
+//豆丁书房ipad需要实现的，开放阅读器不需要实现的
+- (BOOL)addBookMarkToWareHouseFrom:(NSDictionary *) bookMark WithBookid:(NSUInteger) integer WithAccountId:(NSUInteger) accountId;
+- (BOOL)delBookMarkFromWareHouseFrom:(formatLocation *) formaLoc WithBookid:(NSUInteger) integer WithAccountId:(NSUInteger) accountId;
+- (NSMutableArray *)getBooKMarkFromWareHouseWithBookid:(NSUInteger) integer WithAccountId:(NSUInteger) accountId;
+@end

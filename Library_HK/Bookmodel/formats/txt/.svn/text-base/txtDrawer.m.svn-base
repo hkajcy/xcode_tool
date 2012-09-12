@@ -1,0 +1,233 @@
+//
+//  txtDrawer.m
+//  docinBookReader
+//
+//  Created by  on 11-11-1.
+//  Copyright 2011年 __MyCompanyName__. All rights reserved.
+//
+
+#import "txtDrawer.h"
+#import "bookConfig.h"
+#import "Constants.h"
+#import <CoreText/CoreText.h>
+#import "txtPageInfo.h"
+
+@implementation txtDrawer
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+    }
+    
+    return self;
+}
+
++ (void) draw:(NSArray*)streamArray
+                   isPlaying:(BOOL)isPlaying
+                  StartIndex:(int)startIndex
+           StartPlayingIndex:(int)startPlayingIndex
+            StopPlayingIndex:(int)stopPlayingIndex
+                   inContext:(CGContextRef)context
+{
+    float drawOriginaX;
+    float drawOriginaY;
+    
+    if([bookConfig sharedInstance].enviromentType == 0)
+    {
+        [[UIColor blackColor] set];
+    }
+    else
+    {
+        [[UIColor whiteColor] set];
+    }
+    
+    if ([bookConfig sharedInstance].isFullMode)
+    {
+        drawOriginaX = kReaderTextOriginaX;
+        drawOriginaY = kReaderTextOriginaY - BUTTON_HEIGHT - BUTTON_Y;
+    }
+    else
+    {
+        drawOriginaX = kReaderTextOriginaX;
+        drawOriginaY = kReaderTextOriginaY;
+    }
+    
+    int drawIndex = startIndex;
+    
+    UIFont* drawFont = [bookConfig sharedInstance].font;
+    float lineSpacing = [bookConfig sharedInstance].lineSpacing;
+    
+    if (isPlaying)
+    {
+        if (drawIndex > startPlayingIndex
+            && drawIndex < stopPlayingIndex)
+        {
+            [[UIColor redColor] set];
+        }
+        
+        for(int i=0;i<[streamArray count];i++)
+        { 
+            NSString* drawStr = [streamArray objectAtIndex:i];
+            int strLength = [drawStr length];
+            int endDrawIndex = strLength + drawIndex;
+            
+            if ((startPlayingIndex >= drawIndex
+                && startPlayingIndex < endDrawIndex)
+                && !(stopPlayingIndex > drawIndex
+                     && stopPlayingIndex <= endDrawIndex))
+                
+            {
+                NSString* leftStr = [drawStr substringToIndex:startPlayingIndex - drawIndex];
+                NSString* rightStr = [drawStr substringFromIndex:startPlayingIndex - drawIndex];
+                
+                CGSize leftSize = CGSizeMake(0, 0);
+                
+                if (leftStr)
+                {
+                    leftSize = [leftStr drawAtPoint:CGPointMake(drawOriginaX,drawOriginaY) withFont:drawFont];
+                }
+                [[UIColor redColor] set];
+                
+                CGSize rightSize = CGSizeMake(0, 0);
+                
+                if (rightStr)
+                {
+                    rightSize = [rightStr drawAtPoint:CGPointMake(drawOriginaX + leftSize.width,drawOriginaY) withFont:drawFont];
+                }
+                
+                drawOriginaY += (lineSpacing + MAX(leftSize.height, rightSize.height));
+            }
+            
+            else
+            if ((stopPlayingIndex > drawIndex
+                && stopPlayingIndex <= endDrawIndex)
+                && !(startPlayingIndex >= drawIndex
+                     && startPlayingIndex < endDrawIndex))
+            {
+                NSString* leftStr = [drawStr substringToIndex:stopPlayingIndex - drawIndex];
+                NSString* rightStr = [drawStr substringFromIndex:stopPlayingIndex - drawIndex];
+                
+                CGSize leftSize = CGSizeMake(0, 0);
+                
+                if (leftStr)
+                {
+                    leftSize = [leftStr drawAtPoint:CGPointMake(drawOriginaX,drawOriginaY) withFont:drawFont];
+                }
+                
+                if([bookConfig sharedInstance].enviromentType == 0)
+                {
+                    [[UIColor blackColor] set];
+                }
+                else
+                {
+                    [[UIColor whiteColor] set];
+                }
+                
+                CGSize rightSize = CGSizeMake(0, 0);
+                
+                if (rightStr)
+                {
+                    rightSize = [rightStr drawAtPoint:CGPointMake(drawOriginaX + leftSize.width,drawOriginaY) withFont:drawFont];
+                }
+                
+                drawOriginaY += (lineSpacing + MAX(leftSize.height, rightSize.height));
+            }
+            
+            else
+            if ((startPlayingIndex >= drawIndex
+                 && startPlayingIndex < endDrawIndex)
+                && (stopPlayingIndex > drawIndex
+                    && stopPlayingIndex <= endDrawIndex))
+            {
+                NSString* leftStr = [drawStr substringToIndex:startPlayingIndex - drawIndex];
+                NSString* middleStr = [drawStr substringWithRange:NSMakeRange(startPlayingIndex - drawIndex, stopPlayingIndex - startPlayingIndex)];
+                NSString* rightStr = [drawStr substringFromIndex:stopPlayingIndex - drawIndex];
+                
+                
+                CGSize leftSize = CGSizeMake(0, 0);
+                
+                if (leftStr)
+                {
+                    leftSize = [leftStr drawAtPoint:CGPointMake(drawOriginaX,drawOriginaY) withFont:drawFont];
+                }
+                
+                
+                [[UIColor redColor] set];
+                
+                CGSize middleSize = CGSizeMake(0, 0);
+                
+                if (middleStr)
+                {
+                    middleSize = [middleStr drawAtPoint:CGPointMake(drawOriginaX + leftSize.width,drawOriginaY) withFont:drawFont];
+                    
+                    if([bookConfig sharedInstance].enviromentType == 0)
+                    {
+                        [[UIColor blackColor] set];
+                    }
+                    else
+                    {
+                        [[UIColor whiteColor] set];
+                    }
+                }
+                
+                CGSize rightSize = CGSizeMake(0, 0);
+                
+                if (rightStr)
+                {
+                    rightSize = [rightStr drawAtPoint:CGPointMake(drawOriginaX + leftSize.width + middleSize.width,drawOriginaY) withFont:drawFont];
+                }
+                
+                drawOriginaY += (lineSpacing + MAX(MAX(leftSize.height,rightSize.height),middleSize.height));
+            }
+            
+            else
+            {
+                NSString* str = [streamArray objectAtIndex:i];
+                CGSize size = [str drawAtPoint:CGPointMake(drawOriginaX,drawOriginaY) withFont:drawFont];
+                
+                drawOriginaY += (lineSpacing + size.height);
+            }
+            
+            drawIndex += [drawStr length];
+        }
+    }
+    else
+    {
+        for(int i=0;i<[streamArray count];i++)
+        { 
+            NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+            
+            NSString* str = [streamArray objectAtIndex:i];
+            CGSize size = [str drawAtPoint:CGPointMake(drawOriginaX,drawOriginaY) withFont:drawFont];
+
+            drawOriginaY += (lineSpacing + size.height);
+            
+            [pool release];
+        }
+    }
+    
+    if([bookConfig sharedInstance].enviromentType == 0)
+    {
+        [[UIColor blackColor] set];
+    }
+    else
+    {
+        [[UIColor whiteColor] set];
+    }
+}
+
++ (void) drawWithPageInfo:(id)pageInfo_
+         withBookDrawMode:(bookDrawMode)drawMode
+        StartSpecIndex:(int)startSpecIndex
+         StopSpecIndex:(int)stopSpecIndex
+                inContext:(CGContextRef)context
+{
+    txtPageInfo* pageInfo = pageInfo_;
+    [pageInfo drawPageInContext:context
+                   bookDrawMode:drawMode 
+              StartPlayingIndex:startSpecIndex
+               StopPlayingIndex:stopSpecIndex];
+}
+@end
