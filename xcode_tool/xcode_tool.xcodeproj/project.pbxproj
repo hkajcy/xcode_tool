@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C3B7B2EC1606F03B005A8B56 /* ConfigSetting.m in Sources */ = {isa = PBXBuildFile; fileRef = C3B7B2EA1606F03B005A8B56 /* ConfigSetting.m */; };
+		C3B7B2ED1606F03B005A8B56 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = C3B7B2EB1606F03B005A8B56 /* config.xml */; };
 		C3CACBF51606C73D00B2C263 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CACBF41606C73D00B2C263 /* UIKit.framework */; };
 		C3CACBF71606C73D00B2C263 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CACBF61606C73D00B2C263 /* Foundation.framework */; };
 		C3CACBF91606C73D00B2C263 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3CACBF81606C73D00B2C263 /* CoreGraphics.framework */; };
@@ -191,6 +193,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		C3B7B2E81606F03B005A8B56 /* Config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Config.h; sourceTree = "<group>"; };
+		C3B7B2E91606F03B005A8B56 /* ConfigSetting.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConfigSetting.h; sourceTree = "<group>"; };
+		C3B7B2EA1606F03B005A8B56 /* ConfigSetting.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConfigSetting.m; sourceTree = "<group>"; };
+		C3B7B2EB1606F03B005A8B56 /* config.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		C3CACBF01606C73D00B2C263 /* xcode_tool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = xcode_tool.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3CACBF41606C73D00B2C263 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		C3CACBF61606C73D00B2C263 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -579,9 +585,6 @@
 		C3CACBE51606C73C00B2C263 = {
 			isa = PBXGroup;
 			children = (
-				C3CACE401606C9B100B2C263 /* libicucore.dylib */,
-				C3CACE391606C96800B2C263 /* libz.1.1.3.dylib */,
-				C3CACE371606C95600B2C263 /* AVFoundation.framework */,
 				C3CACBFA1606C73D00B2C263 /* xcode_tool */,
 				C3CACBF31606C73D00B2C263 /* Frameworks */,
 				C3CACBF11606C73D00B2C263 /* Products */,
@@ -599,6 +602,9 @@
 		C3CACBF31606C73D00B2C263 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				C3CACE401606C9B100B2C263 /* libicucore.dylib */,
+				C3CACE391606C96800B2C263 /* libz.1.1.3.dylib */,
+				C3CACE371606C95600B2C263 /* AVFoundation.framework */,
 				C3CACE351606C8D100B2C263 /* libsqlite3.0.dylib */,
 				C3CACE331606C8C600B2C263 /* AudioToolbox.framework */,
 				C3CACE311606C8BA00B2C263 /* CoreText.framework */,
@@ -655,6 +661,10 @@
 		C3CACC0F1606C7A600B2C263 /* Library_HK */ = {
 			isa = PBXGroup;
 			children = (
+				C3B7B2E81606F03B005A8B56 /* Config.h */,
+				C3B7B2E91606F03B005A8B56 /* ConfigSetting.h */,
+				C3B7B2EA1606F03B005A8B56 /* ConfigSetting.m */,
+				C3B7B2EB1606F03B005A8B56 /* config.xml */,
 				C3CACC101606C7A600B2C263 /* Bookmodel */,
 				C3CACC9A1606C7A600B2C263 /* encodeDetector */,
 				C3CACCB51606C7A600B2C263 /* FileSystemManager */,
@@ -1347,6 +1357,7 @@
 				C3CACDFF1606C7A600B2C263 /* dll.rc in Resources */,
 				C3CACE0C1606C7A600B2C263 /* license.txt in Resources */,
 				C3CACE161606C7A600B2C263 /* readme.txt in Resources */,
+				C3B7B2ED1606F03B005A8B56 /* config.xml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1499,6 +1510,7 @@
 				C3CACE2C1606C7A600B2C263 /* ZipArchive.mm in Sources */,
 				C3CACE2D1606C7A600B2C263 /* View.m in Sources */,
 				C3CACE2E1606C7A600B2C263 /* ViewController.m in Sources */,
+				C3B7B2EC1606F03B005A8B56 /* ConfigSetting.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1616,6 +1628,7 @@
 				C3CACC0A1606C73D00B2C263 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

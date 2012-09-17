@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xml>
+    <Common>
+        <Screen>
+            <ScreenWidth>
+                <iPhone_Portrait    value = "320"/>
+                <iPhone_Landscape   value = "460"/>
+                <iPad_Portrait      value = "768"/>
+                <iPad_Landscape     value = "1024"/>
+            </ScreenWidth>
+        </Screen>
+    </Common>  
+</xml>
