@@ -1,0 +1,138 @@
+//
+//  tBook.m
+//  DocinBookReader
+//
+//  Created by  on 11-11-1.
+//  Copyright 2011年 __MyCompanyName__. All rights reserved.
+//
+
+#import "book.h"
+#import "formatPlugin.h"
+#import "pluginCollection.h"
+#import "bookModel.h"
+#import "macros_for_IOS_hk.h"
+#import "FormatSpine.h"
+#import "PDFThumb.h"
+
+
+
+@implementation book
+
+@synthesize bookID = _bookID;
+@synthesize myBookModel = _bookModel;
+@synthesize myMetaInfoDic = _metaInfoDic;
+@synthesize mySpine = _FormatSpine;
+@synthesize mystartLocation = _startLocation;
+@synthesize bookWareHouse = _bookWareHouse;
+
+- (id)initWithFilePath:(NSString*)filePatht BookID:(int)bookid
+{
+    self = [super init];
+    if (self) 
+    {
+        _filePath = [filePatht copy];
+        _bookID = bookid;
+    }
+    
+    return self;
+}
+
+- (void) setBookWareHouse:(id)bookWareHouse_
+{
+    _bookWareHouse = bookWareHouse_;
+    if ([(NSObject*)_bookModel isKindOfClass:[bookModel class]])
+    {
+        bookModel* tBookModel = (bookModel*)_bookModel;
+        tBookModel.bookWareHouse = _bookWareHouse;
+    }
+}
+
++ (UIImage*) coverImageOfBookPath:(NSString*) bookPath 
+{
+    int bookid = 0;
+    UIImage* img = nil;
+    // 如果是txt就不要去取封面了
+    if ([[bookPath pathExtension] compare:@"txt" options:NSCaseInsensitivePredicateOption] == NSOrderedSame)
+    {
+        return nil;
+    }
+    else if ([[bookPath pathExtension] compare:@"epub" options:NSCaseInsensitivePredicateOption] == NSOrderedSame)
+    {
+        book* tBook = [book BookWithFilePath:bookPath bookID:bookid StartLocation:nil];
+        img = [tBook coverImage];
+    }
+    else if ([[bookPath pathExtension] compare:@"pdf" options:NSCaseInsensitivePredicateOption] == NSOrderedSame)
+    {
+        PDFThumbItem* item = [PDFThumb thumbItemWithFilePath:bookPath
+                                     withSize:CGSizeMake(kCurUI_SCREEN_WIDTH(UIInterfaceOrientationPortrait),   kCurUI_SCREEN_HEIGHT(UIInterfaceOrientationPortrait))
+                                withPageIndex:0];
+        img = item.image;
+    }
+    else if ([[bookPath pathExtension] compare:@"umd" options:NSCaseInsensitivePredicateOption] == NSOrderedSame)
+    {
+        book* tBook = [book BookWithFilePath:bookPath bookID:bookid StartLocation:nil];
+        img = [tBook coverImage];
+    }
+    
+    if(!img)
+    {
+        return nil;
+    }
+    
+    return img;
+}
++ (book*) BookWithFilePath:(NSString *)filePath
+                    bookID:(int)bookid
+             StartLocation:(id)formatLocationt
+{
+    book* tBook = [[[book alloc] initWithFilePath:filePath BookID:bookid] autorelease];
+    id<formatPluginProtocol> myformatPlugin = [[pluginCollection sharedInstance] plugin:filePath];
+    tBook.mystartLocation = formatLocationt;
+    
+    if (![myformatPlugin readMetaInfo:tBook])
+    {
+        return nil;
+    }
+    
+    return tBook;
+}
+
+- (NSString*) filePath
+{
+    return _filePath;
+}
+
+- (NSString*) bookTittle
+{
+    NSString* tittle = [_metaInfoDic valueForKey:tittle_STR];
+    
+    return tittle;
+}
+
+- (NSMutableArray*) bookSpineArray
+{
+    if (self.mySpine)
+    {
+        return self.mySpine.spineArray;
+    }
+    else
+    {
+        return [_bookModel bookSpineArray];
+    }
+}
+
+- (UIImage*) coverImage
+{
+    return [_metaInfoDic valueForKey:coverImage_STR];
+}
+
+- (void)dealloc
+{
+    SAFE_RELEASE(_filePath);
+    SAFE_RELEASE(_FormatSpine);
+    SAFE_RELEASE(_metaInfoDic);
+    SAFE_RELEASE(_startLocation);
+    SAFE_RELEASE(_bookModel);
+    [super dealloc];
+}
+@end

@@ -1,0 +1,671 @@
+//
+//  txtRowInfo.m
+//  docinBookReader
+//
+//  Created by 黄柯 on 12-3-13.
+//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//
+
+#import "txtRowInfo.h"
+#import "accessibilityElement.h"
+#import "txtLocation.h"
+#import "macros_for_IOS_hk.h"
+#import "NSString ++.h"
+#define selectRectSize      (CGSizeMake(-20, -20))
+@implementation txtRowInfo
+
+@synthesize maxLengthInALine = _maxLengthInALine;
+@synthesize drawStr = _drawStr;
+@synthesize startIndex = _startIndex;
+@synthesize visibleStartIndex;
+@synthesize length = _length;
+@synthesize stopIndex = _stopIndex;
+@synthesize drawOriginalX = _drawOriginalX;
+@synthesize drawOriginalY = _drawOriginalY;
+@synthesize drawTextWidth = _drawTextWidth;
+@synthesize drawTextHeight = _drawTextHeight;
+@synthesize drawViewWidth = _drawViewWidth;
+@synthesize drawViewHeight = _drawViewHeight;
+@synthesize drawFont = _drawFont;
+@synthesize drawColor = _drawColor;
+
+@synthesize isParagraphEnd = _isParagraphEnd;
+@synthesize isSeparetedByLineBreake = _isSeparetedByLineBreake;
+
+@synthesize startPlayingIndex = _startPlayingIndex;
+@synthesize stopPlayingIndex = _stopPlayingIndex;
+
+@synthesize contentRect = _contentRect;
+@synthesize isIndent;
+
+@synthesize selectStopLocation;
+@synthesize selectStartLocation;
+@synthesize isSelecting;
+
+@synthesize startSelectingElement;
+@synthesize stopSelectingElement;
+
+#pragma mark-
+- (NSString*) subStringWithLineBreak:(NSString*)str
+{
+    assert(str);
+    NSRange rRange = [str rangeOfString:@"\r"];
+    NSRange nRange = [str rangeOfString:@"\n"];
+    
+    NSRange rnRange = [str rangeOfString:@"\r\n"];
+    NSRange nrRange = [str rangeOfString:@"\n\r"];
+    
+    int separaterIndex = 0;
+    
+    BOOL needLast = rRange.location != NSNotFound 
+    || nRange.location != NSNotFound
+    || rnRange.location != NSNotFound
+    || nrRange.location != NSNotFound;
+    
+    if (needLast)
+    {
+        if (rRange.location < nRange.location)
+        {
+            if (rRange.location < rnRange.location)
+            {
+                separaterIndex = rRange.location + 1;
+            }
+            else
+            {
+                separaterIndex = rnRange.location + 2;
+            }
+        }
+        else
+        {
+            if (nRange.location < nrRange.location)
+            {
+                separaterIndex = nRange.location + 1;
+            }
+            else
+            {
+                separaterIndex = nrRange.location + 2;
+            }
+        }
+    }
+    
+    NSString* tStr;
+    
+    if (separaterIndex == 0)
+    {
+        _isSeparetedByLineBreake = NO;
+        tStr = str;
+    }
+    else
+    {
+        _isSeparetedByLineBreake = YES;
+        tStr = [str substringToIndex:separaterIndex];
+    }
+    
+    return tStr;
+}
+
++ (BOOL) removeIndentWithString:(NSMutableString*)str
+{
+    BOOL firstLineNeedIndent = YES;
+    int index = -1;
+    
+    NSCharacterSet* set = [NSCharacterSet characterSetWithCharactersInString:@"\t \u3000"];
+    
+    NSMutableString* doStr = str;
+    int relativeIndex = 0;
+    do 
+    {
+        doStr = [NSMutableString stringWithString:[doStr substringFromIndex:index + 1]];
+        
+        for (int i=0; i<[doStr length]; i++)
+        {
+            unichar subChar = [doStr characterAtIndex:i];
+            if ([set characterIsMember:subChar]) 
+            {
+                [str replaceCharactersInRange:NSMakeRange(i + relativeIndex, 1) withString:@"\0"];
+            }
+            else
+            {
+                if (index == -1)
+                {
+                    firstLineNeedIndent = NO;
+                }
+                break;
+            }
+        } 
+        index = [doStr rangeOfString:@"\n"].location;
+        relativeIndex += index + 1;
+    } while (index != NSNotFound);
+    
+    return firstLineNeedIndent;
+}
+
+- (void) createColorLine
+{
+    SAFE_RELEASE(colorLineRef)
+    NSMutableAttributedString* attStr = self.drawStr;
+    debugLog(@"%@",[self.drawStr string])
+    
+    
+    //设置段落属性
+    /**************************************************************************************************************************/
+    if (!isIndent)
+    {
+        int ParagraphStylesSupported = 10;
+        CTParagraphStyleSetting settings[ParagraphStylesSupported];
+        CTTextAlignment alignment;
+        CGFloat floatValues[ParagraphStylesSupported];
+        
+        int settingsIndex = 0;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierFirstLineHeadIndent;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierHeadIndent;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierTailIndent;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierDefaultTabInterval;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierLineSpacingAdjustment;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierParagraphSpacing;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierParagraphSpacingBefore;settingsIndex++;
+        settings[settingsIndex].spec =     kCTParagraphStyleSpecifierLineBreakMode;settingsIndex++;
+        
+        CGFloat value[] = 
+        {   
+            0 , //kCTParagraphStyleSpecifierFirstLineHeadIndent;
+            0 , //kCTParagraphStyleSpecifierHeadIndent;
+            0 , //kCTParagraphStyleSpecifierTailIndent;
+            0 , //kCTParagraphStyleSpecifierDefaultTabInterval;
+            0 , //kCTParagraphStyleSpecifierLineSpacingAdjustment;
+            0 , //kCTParagraphStyleSpecifierParagraphSpacing;
+            0 , //kCTParagraphStyleSpecifierParagraphSpacingBefore;
+            0 , //kCTParagraphStyleSpecifierLineBreakMode
+            /*
+             kCTLineBreakByWordWrapping = 0,
+             kCTLineBreakByCharWrapping = 1,
+             kCTLineBreakByClipping = 2,
+             kCTLineBreakByTruncatingHead = 3,
+             kCTLineBreakByTruncatingTail = 4,
+             kCTLineBreakByTruncatingMiddle = 5
+             */
+        };
+        
+        NSUInteger styleIndex;
+        for (styleIndex=0; styleIndex<settingsIndex; styleIndex++) {
+            settings[styleIndex].valueSize = sizeof(CGFloat);
+            floatValues[styleIndex] = value[styleIndex];
+            settings[styleIndex].value = &floatValues[styleIndex];
+        }
+        
+        settings[settingsIndex].spec = kCTParagraphStyleSpecifierAlignment;
+        settings[settingsIndex].valueSize = sizeof(CTTextAlignment);
+        alignment = kCTJustifiedTextAlignment;
+        settings[settingsIndex].value = &alignment;
+        settingsIndex++;
+        
+        CTParagraphStyleRef style = AUTO_RELEASED_CTREF(CTParagraphStyleCreate((const CTParagraphStyleSetting*) settings, settingsIndex));
+        [attStr addAttribute:(NSString*)kCTParagraphStyleAttributeName value:(id)style range:NSMakeRange(0, [attStr length])];
+    }
+    /**************************************************************************************************************************/
+    
+    //设置颜色 开始
+    /**************************************************************************************************************************/
+    [attStr addAttribute:(NSString*)kCTForegroundColorAttributeName value:(id)self.drawColor.CGColor range:NSMakeRange(0,[attStr length])];
+    _length = [attStr length];
+    
+    CGColorRef color = [UIColor redColor].CGColor;
+    int start = _startPlayingIndex - _startIndex < 0 ? 0 : _startPlayingIndex - _startIndex;
+    int stop =  _stopPlayingIndex - _startIndex - _length < 0 ? (_stopPlayingIndex - _startIndex) : _length;
+    
+    [attStr addAttribute:(NSString*)kCTForegroundColorAttributeName value:(id)color range:NSMakeRange(start,stop - start)];
+    /**************************************************************************************************************************/
+    
+    //    //设置字体 开始
+    //    /**************************************************************************************************************************/
+    //    CFStringRef fontName = AUTO_RELEASED_CTREF(CFStringCreateWithCString(NULL,
+    //                                                                         [[_drawFont fontName] cStringUsingEncoding:NSUTF8StringEncoding], 
+    //                                                                         kCFStringEncodingUTF8));
+    //    
+    //    CTFontRef fontRef = AUTO_RELEASED_CTREF(CTFontCreateWithName(fontName,_drawFont.pointSize , NULL));
+    //    [attStr addAttribute:(NSString*)kCTFontAttributeName value:(id)fontRef range:NSMakeRange(0, [attStr length])];
+    //    /**************************************************************************************************************************/
+    
+    //创建CTline;
+    /**************************************************************************************************************************/
+    CTFramesetterRef frameSetter = AUTO_RELEASED_CTREF(CTFramesetterCreateWithAttributedString((CFAttributedStringRef)attStr));
+    
+    CGRect drawRect = CGRectMake(_drawOriginalX, _drawViewHeight - _drawOriginalY - _drawTextHeight, _drawTextWidth, 1000 * _drawTextHeight);
+    CGMutablePathRef path = AUTO_RELEASED_CTREF(CGPathCreateMutable());
+    CGPathAddRect(path, NULL, drawRect);
+    
+    CTFrameRef frame = AUTO_RELEASED_CTREF(CTFramesetterCreateFrame(frameSetter, CFRangeMake(0, 0), path, nil));
+    NSArray* array = (NSArray*)CTFrameGetLines(frame);
+    
+    int index;
+    for (id line in array)
+    {
+        colorLineRef = (CTLineRef)line;
+        CFRange range = CTLineGetStringRange(colorLineRef);
+        if ([[[attStr attributedSubstringFromRange:NSMakeRange(range.location, range.length)] string] isVisible]) 
+        {
+            index = [array indexOfObject:line];
+            break;
+        };
+    }
+    
+    CFRetain(colorLineRef);
+    drawLineRef = colorLineRef;
+    /**************************************************************************************************************************/
+}
+
+
+- (void) reCreateWithStartSpecIndex:(int)startSpecIndex
+                  withStopSpecIndex:(int)stopSpecIndex
+{
+    if (self.startPlayingIndex != startSpecIndex
+        || self.stopPlayingIndex != stopSpecIndex)
+    {
+        self.startPlayingIndex = startSpecIndex;
+        self.stopPlayingIndex = stopSpecIndex;
+        
+        NSRange playRange = NSMakeRange(_startPlayingIndex, _stopPlayingIndex - _startPlayingIndex);
+        if (NSLocationInRange(_startIndex,playRange) 
+            || NSLocationInRange(_startIndex + _length, playRange)
+            || NSLocationInRange(_startPlayingIndex, NSMakeRange(_startIndex, _length))
+            )
+        {
+            [self createColorLine];
+        }
+        else
+        {
+            drawLineRef = lineRef;
+        }
+    }
+}
+
+- (void) createAccessbility
+{
+    SAFE_RELEASE(txtAccessibilityArray);
+    txtAccessibilityArray = [[NSMutableArray alloc] initWithCapacity:0];
+    
+    CGFloat secondaryOffset = 0;
+    CFRange range = CTLineGetStringRange(lineRef);
+    
+    for (int i=0; i<range.length; i++)
+    {
+        CGFloat originalX = 0;
+        CGFloat originalY = 0;
+        CGFloat width = 0;
+        CGFloat height = 0;
+        
+        originalX = CTLineGetOffsetForStringIndex(lineRef, range.location + i, &secondaryOffset) + _drawOriginalX;
+        originalY = _drawOriginalY;
+        
+        width = CTLineGetOffsetForStringIndex(lineRef, range.location + i + 1, &secondaryOffset) - originalX + _drawOriginalX;
+        
+        height =_drawTextHeight;
+        
+        accessibilityElement* element = [[[accessibilityElement alloc] init] autorelease];
+        element.contextBounds = CGRectInset(CGRectMake(originalX, originalY, width, height),-1,0);
+        element.startLocation = [txtLocation txtLocationWithIndex:self.visibleStartIndex + i];
+        [txtAccessibilityArray addObject:element];
+    }
+    
+    _contentRect = CGRectInset(CGRectMake(_drawOriginalX, _drawOriginalY, _drawTextWidth, _drawTextHeight),0,-5);
+}
+
+- (void) drawSelectAreaInContext:(CGContextRef)context
+{
+    CGContextTranslateCTM(context, 0, self.drawViewHeight);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    
+    float k = (1.5 - 1.2) / (10 - 24);
+    float b = 1.5 - 10 * k;
+    
+    float height = self.drawFont.pointSize * (self.drawFont.pointSize * k + b);
+    
+    if (selectStartLocation != nil
+        && selectStopLocation != nil)
+    {
+        
+        NSRange selectRange = NSMakeRange([(txtLocation*)selectStartLocation charactorIndex], [selectStopLocation charactorIndex] - [selectStartLocation charactorIndex]);
+        if (NSLocationInRange(_startIndex,selectRange) 
+            || NSLocationInRange(_startIndex + _length, selectRange)
+            || NSLocationInRange([(txtLocation*)selectStartLocation charactorIndex], NSMakeRange(_startIndex, _length))
+            )
+        {
+            CGPoint startPoint = CGPointZero;
+            CGPoint stopPoint = CGPointZero;
+            
+            for (accessibilityElement* element in txtAccessibilityArray)
+            {
+                int location =  [element.startLocation charactorIndex];
+                
+                //找画的起点
+                if (NSLocationInRange(location, selectRange)
+                    && CGPointEqualToPoint(startPoint, CGPointZero))
+                {
+                    startPoint = element.contextBounds.origin;
+                }
+                
+                //找画的终点
+                if (NSLocationInRange(location, selectRange))
+                {
+                    CGRect rect = element.contextBounds;
+                    stopPoint = element.contextBounds.origin;
+                    stopPoint.x += rect.size.width;
+                }
+                
+                if (isSelecting)
+                {
+                    //绘画首选位置
+                    //*****************************************************************************************//
+                    if (location == selectRange.location)
+                    {
+                        CGRect rect = element.contextBounds;
+                        rect.size.width = self.drawFont.pointSize / 5;
+                        rect.origin.x -= rect.size.width;
+                        rect.size.height = height;
+                        
+                        CGContextBeginPath(context);
+                        CGContextAddRect(context, rect);
+                        CGContextClosePath(context);
+                        CGContextSetFillColorWithColor(context, kSelectEdgeColor.CGColor);
+                        CGContextFillPath(context);
+                        
+                        //画圆圈
+                        CGContextBeginPath(context);
+                        CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                        CGContextStrokePath(context);
+                        
+                        //往圆圈内填充颜色
+                        CGContextBeginPath(context);
+                        CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                        CGContextClosePath(context);
+                        CGContextSetFillColorWithColor(context, kSelectCircleColor.CGColor);
+                        CGContextFillPath(context);
+                    }
+                    //*****************************************************************************************//
+                    
+                    
+                    //绘画末选位置
+                    if (location + 1 == NSMaxRange(selectRange))
+                    {
+                        CGRect rect = element.contextBounds;
+                        rect.origin.x += rect.size.width;
+                        rect.size.width = self.drawFont.pointSize / 5;
+                        rect.size.height = height;
+                        
+                        CGContextBeginPath(context);
+                        CGContextAddRect(context, rect);
+                        CGContextClosePath(context);
+                        CGContextSetFillColorWithColor(context, kSelectEdgeColor.CGColor);
+                        CGContextFillPath(context);
+                        
+                        //画圆圈
+                        CGContextBeginPath(context);
+                        CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y + rect.size.height, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                        CGContextStrokePath(context);
+                        
+                        //往圆圈内填充颜色
+                        CGContextBeginPath(context);
+                        CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y + rect.size.height, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                        CGContextClosePath(context);
+                        CGContextSetFillColorWithColor(context, kSelectCircleColor.CGColor);
+                        CGContextFillPath(context);
+                    }
+                }
+            } 
+            
+            CGRect rect = CGRectMake(startPoint.x, startPoint.y, stopPoint.x - startPoint.x, height);
+            
+            CGContextBeginPath(context);
+            CGContextAddRect(context, rect);
+            CGContextClosePath(context);
+            CGContextSetFillColorWithColor(context, kSelectColor.CGColor);
+            CGContextFillPath(context);
+            
+            //出现了首选位置位于一段话的开始
+            if (_startIndex == selectRange.location)
+            {
+                
+                CGRect rect = [[txtAccessibilityArray objectAtIndex:0] contextBounds];
+                rect.size.width = self.drawFont.pointSize / 5;
+                rect.origin.x -= rect.size.width;
+                rect.size.height = height;
+                
+                CGContextBeginPath(context);
+                CGContextAddRect(context, rect);
+                CGContextClosePath(context);
+                CGContextSetFillColorWithColor(context, kSelectEdgeColor.CGColor);
+                CGContextFillPath(context);
+                
+                //画圆圈
+                CGContextBeginPath(context);
+                CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                CGContextStrokePath(context);
+                
+                //往圆圈内填充颜色
+                CGContextBeginPath(context);
+                CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                CGContextClosePath(context);
+                CGContextSetFillColorWithColor(context, kSelectCircleColor.CGColor);
+                CGContextFillPath(context);
+            }
+            
+            if (_stopIndex == NSMaxRange(selectRange))
+            {
+                CGRect rect = [[txtAccessibilityArray lastObject] contextBounds];
+                rect.origin.x += rect.size.width;
+                rect.size.width = self.drawFont.pointSize / 5;
+                rect.size.height = height;
+                
+                CGContextBeginPath(context);
+                CGContextAddRect(context, rect);
+                CGContextClosePath(context);
+                CGContextSetFillColorWithColor(context, kSelectEdgeColor.CGColor);
+                CGContextFillPath(context);
+                
+                //画圆圈
+                CGContextBeginPath(context);
+                CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y + rect.size.height, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                CGContextStrokePath(context);
+                
+                //往圆圈内填充颜色
+                CGContextBeginPath(context);
+                CGContextAddArc(context, rect.origin.x + rect.size.width / 2, rect.origin.y + rect.size.height, rect.size.width / 2 + 2, 0, 2*M_PI, YES);
+                CGContextClosePath(context);
+                CGContextSetFillColorWithColor(context, kSelectCircleColor.CGColor);
+                CGContextFillPath(context);
+            }
+        }
+    }
+    
+    CGContextScaleCTM(context, 1.0, -1.0);
+    CGContextTranslateCTM(context, 0, -self.drawViewHeight);
+}
+- (void) drawInContext:(CGContextRef)context
+{
+    CGContextSaveGState(context);
+    
+    [self drawSelectAreaInContext:context];
+    
+    CGContextSetTextPosition(context, _drawOriginalX, _drawViewHeight - _drawOriginalY - self.drawTextHeight);
+    CTLineDraw(drawLineRef, context);
+    CGContextRestoreGState(context);
+}
+
+#pragma mark-
+#pragma mark set
+- (void) setDrawColor:(UIColor *)drawColor_
+{
+    if (![self.drawColor isEqual:drawColor_])
+    {
+        [_drawColor release];
+        _drawColor = [drawColor_ retain];
+        
+        
+        if (!CGRectEqualToRect(self.contentRect,CGRectZero) )
+        {
+            [self reCreateWithStartSpecIndex:NSNotFound
+                           withStopSpecIndex:NSNotFound];
+        }
+    }
+}
+
+- (void) setCTlineRef:(CTLineRef)lineref
+{
+    if (lineRef != lineref)
+    {
+        CFSAFE_RELEASE(lineRef)
+        lineRef = CFRetain(lineref);
+        drawLineRef = lineRef;
+    }
+}
+
+#pragma mark-
+#pragma mark accessibilityElement
+- (BOOL) isPointInTheRow:(CGPoint)point
+{
+    return CGRectContainsPoint(_contentRect, point);
+}
+
+- (int ) chIndexWithPoint:(CGPoint)point
+{
+    for (accessibilityElement* element in txtAccessibilityArray)
+    {
+        CGRect rect = element.contextBounds;
+        if (point.x >= rect.origin.x
+            && point.x < rect.origin.x + rect.size.width)
+        {
+            if ([element.startLocation charactorIndex] == visibleStartIndex)
+            {
+                return _startIndex;
+            }
+            return [element.startLocation charactorIndex];
+        }
+    }
+    
+    if (point.x < _drawOriginalX)
+    {
+        return _startIndex;
+    }
+    else
+    {
+        return _stopIndex;
+    }
+}
+
+
+- (void) createSelectingElement
+{
+    if (selectStartLocation != nil
+        && selectStopLocation != nil)
+    {
+        NSRange selectRange = NSMakeRange([(txtLocation*)selectStartLocation charactorIndex], [selectStopLocation charactorIndex] - [selectStartLocation charactorIndex]);
+        if (NSLocationInRange(_startIndex,selectRange) 
+            || NSLocationInRange(_startIndex + _length, selectRange)
+            || NSLocationInRange([(txtLocation*)selectStartLocation charactorIndex], NSMakeRange(_startIndex, _length))
+            )
+        {
+            for (accessibilityElement* element in txtAccessibilityArray)
+            {
+                int location =  [element.startLocation charactorIndex];
+                
+                //首选位置
+                if (location == selectRange.location)
+                {
+                    CGRect rect = element.contextBounds;
+                    rect.size.width = self.drawFont.pointSize / 5;
+                    rect.origin.x -= self.drawFont.pointSize / 5;
+                    
+                    CGRect selectRect = CGRectMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height, 0, 0);
+                    
+                    
+                    self.startSelectingElement = [[[accessibilityElement alloc] init] autorelease];
+                    self.startSelectingElement.contextBounds = CGRectInset(selectRect, selectRectSize.width, selectRectSize.height);
+                    self.startSelectingElement.startLocation = [element startLocation];
+                    self.startSelectingElement.accessibilityHint = @"startSelectingElement";
+                }
+                
+                //末选位置
+                if (location + 1 == NSMaxRange(selectRange))
+                {
+                    CGRect rect = element.contextBounds;
+                    rect.origin.x += rect.size.width;
+                    rect.size.width = self.drawFont.pointSize / 5;
+                    
+                    CGRect selectRect = CGRectMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height, 0, 0);
+                    
+                    self.stopSelectingElement = [[[accessibilityElement alloc] init] autorelease];
+                    self.stopSelectingElement.contextBounds = CGRectInset(selectRect, selectRectSize.width, selectRectSize.height);
+                    self.stopSelectingElement.startLocation = [txtLocation txtLocationWithIndex:[[element startLocation] charactorIndex] + 1];
+                    self.stopSelectingElement.accessibilityHint = @"stopSelectingElement";
+                }
+            } 
+            
+            //出现了首选位置位于一段话的开始
+            if (_startIndex == selectRange.location)
+            {
+                CGRect rect = [[txtAccessibilityArray objectAtIndex:0] contextBounds];
+                rect.size.width = self.drawFont.pointSize / 5;
+                rect.origin.x -= self.drawFont.pointSize / 5;
+                
+                CGRect selectRect = CGRectMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height, 0, 0);
+                
+                self.startSelectingElement = [[[accessibilityElement alloc] init] autorelease];
+                self.startSelectingElement.contextBounds = CGRectInset(selectRect, selectRectSize.width, selectRectSize.height);
+                self.startSelectingElement.startLocation = [txtLocation txtLocationWithIndex:_startIndex];
+                self.startSelectingElement.accessibilityHint = @"startSelectingElement";
+            }
+            
+            if (_stopIndex == NSMaxRange(selectRange))
+            {
+                CGRect rect = [[txtAccessibilityArray lastObject] contextBounds];
+                rect.origin.x += rect.size.width;
+                rect.size.width = self.drawFont.pointSize / 5;
+                
+                CGRect selectRect = CGRectMake(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height, 0, 0);
+                
+                self.stopSelectingElement = [[[accessibilityElement alloc] init] autorelease];
+                self.stopSelectingElement.contextBounds = CGRectInset(selectRect, selectRectSize.width, selectRectSize.height);
+                self.stopSelectingElement.startLocation = [txtLocation txtLocationWithIndex:_stopIndex];
+                self.stopSelectingElement.accessibilityHint = @"stopSelectingElement";
+            }
+        }
+    }
+    
+    
+}
+- (accessibilityElement*) startSelectingElement
+{
+    if (startSelectingElement == nil)
+    {
+        [self createSelectingElement];
+    }
+    return startSelectingElement;
+}
+
+- (accessibilityElement*) stopSelectingElement
+{
+    if (stopSelectingElement == nil)
+    {
+        [self createSelectingElement];
+    }
+    return stopSelectingElement;
+}
+#pragma mark-
+#pragma mark dealloc
+- (void) dealloc
+{
+    CFSAFE_RELEASE(lineRef)
+    CFSAFE_RELEASE(colorLineRef)
+    SAFE_RELEASE(txtAccessibilityArray)
+    SAFE_RELEASE(_drawColor)
+    SAFE_RELEASE(_drawFont)
+    SAFE_RELEASE(_drawStr)
+    
+    self.selectStartLocation = nil;
+    self.selectStopLocation = nil;
+    
+    self.startSelectingElement = nil;
+    self.stopSelectingElement = nil;
+    [super dealloc];
+}
+@end

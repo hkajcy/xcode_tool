@@ -1,0 +1,463 @@
+//
+//  PdfOutlines.m
+//  PDFTest
+//
+//  Created by heyong on 11-11-22.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "PdfOutline.h"
+#import "Debug.h"
+
+@implementation PDFDest
+
+@synthesize pageNumber;
+
+@end
+
+@interface PDFOutlineItem ()
+
+- (void)arrayForOutlineItem:(NSMutableArray *)array withLevel:(NSInteger)level;
+
+@end
+
+@implementation PDFOutlineItem
+
+@synthesize title = m_title;
+@synthesize parent = m_parent;
+@synthesize dest = m_dest;
+@synthesize children = m_children;
+
+- (void) dealloc {
+	[m_title release];
+	[m_children release];
+    [m_dest release];
+	[super dealloc];
+}
+
+- (id)initWithChildrenCount:(NSInteger)count {
+    self = [super init];
+	if (self) {
+		if (count > 0) {
+			m_children = [[NSMutableArray alloc] initWithCapacity:count];
+		}
+	}
+	return self;
+}
+
+- (void)addChildItem:(PDFOutlineItem*)item {
+	if (nil == m_children) {
+		m_children = [[NSMutableArray alloc] initWithCapacity:1];
+	}
+	[m_children addObject:item];
+}
+
+- (BOOL)hasChildren {
+	return (0 != [m_children count]);
+}
+
+- (void) printInfoLevel:(NSInteger)level {
+	NSString* whitespace = @"";
+	for (NSInteger idx = 0; idx < level; idx++) {
+		whitespace = [whitespace stringByAppendingString:@"   "];
+	}
+	
+	CMLog(@"%@%@[%d]", whitespace, m_title, m_dest.pageNumber);
+	for (PDFOutlineItem* childItem in m_children) {
+		[childItem printInfoLevel:level + 1];
+	}
+}
+
+- (void)arrayForOutlineItem:(NSMutableArray *)array withLevel:(NSInteger)level {
+    NSString* whitespace = @"";
+	for (NSInteger idx = 0; idx < level; idx++) {
+		whitespace = [whitespace stringByAppendingString:@"  "];
+	}
+    
+    PDFOutlineItem *item = [[PDFOutlineItem alloc] init];
+    NSString *title = [[NSString alloc] initWithFormat:@"%@%@", whitespace, m_title];
+    item.title = title;
+    [title release];
+    item.dest = m_dest;
+    [array addObject:item];
+    [item release];
+    for (PDFOutlineItem* childItem in m_children) {
+		[childItem arrayForOutlineItem:array withLevel:level + 1];
+	}
+}
+
+- (NSArray *)getArrayForOutlineItem {
+    NSMutableArray *array = [[[NSMutableArray alloc] init] autorelease];
+    [self arrayForOutlineItem:array withLevel:-1];
+    if ([array count] > 0) {
+        [array removeObjectAtIndex:0];
+    }
+    return array;
+}
+
+@end
+
+static PDFOutlineItem* CreatePDFOutlineWithDictionary(CGPDFDictionaryRef outlinesDict, CGPDFDocumentRef pdfDocument);
+static void FillPDFOutlineWithDictionary(PDFOutlineItem* parentItem, 
+											 CGPDFDictionaryRef pdfDict, CGPDFDocumentRef pdfDocument);
+static CGPDFDictionaryRef GetPageDirectoryFromDest(CGPDFDocumentRef pdfDocument, const char* dest);
+static CGPDFDictionaryRef GetPageDirectoryFromNameTree(CGPDFDocumentRef pdfDocument, NSString* name);
+static CGPDFDictionaryRef GetPageDirectoryFromDictionary(CGPDFDictionaryRef pageDict);
+static NSInteger GetPageNumberFromPageDirectory(CGPDFDocumentRef pdfDocument, CGPDFDictionaryRef pageDict);
+
+@implementation PDFOutline
+
+@synthesize rootItem;
+
+- (void) dealloc {
+    [rootItem release];
+	[super dealloc];
+}
+
++ (BOOL) hasOutlineInPdfDocument:(CGPDFDocumentRef)pdfDocument {
+	CGPDFDictionaryRef dict = CGPDFDocumentGetCatalog(pdfDocument);
+	if (dict == nil) {
+		return NO;
+	}
+	
+	CGPDFObjectRef pdfObject = nil;
+	CGPDFDictionaryRef outlinesDict = nil;	
+	if (CGPDFDictionaryGetObject(dict, "Outlines", &pdfObject) &&
+		CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &outlinesDict)) {
+		return (outlinesDict != nil);
+	}
+	return NO;
+}
+
++ (PDFOutline *) pdfOutlineOfDocument:(CGPDFDocumentRef)pdfDocument {
+	if (pdfDocument == nil) {
+		return nil;
+	}
+	
+	CGPDFDictionaryRef dict = CGPDFDocumentGetCatalog(pdfDocument);
+	if (dict == nil) {
+		return nil;
+	}
+	
+	CGPDFObjectRef pdfObject = nil;
+    PDFOutline *outline = [[[PDFOutline alloc] init] autorelease];
+	PDFOutlineItem* rootItem = nil;
+    
+	if (CGPDFDictionaryGetObject(dict, "Outlines", &pdfObject)) {
+		CGPDFDictionaryRef outlinesDict = nil;		
+		if (CGPDFObjectGetType(pdfObject) == kCGPDFObjectTypeDictionary &&
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &outlinesDict)) {
+			rootItem = CreatePDFOutlineWithDictionary(outlinesDict, pdfDocument);
+			rootItem.title = NSLocalizedString(@"Outlines", @"");
+		}
+	}
+    
+	outline.rootItem = rootItem;
+	return outline;
+}
+
+@end
+
+static PDFOutlineItem* CreatePDFOutlineWithDictionary(CGPDFDictionaryRef outlinesDict, CGPDFDocumentRef pdfDocument) {
+	PDFOutlineItem* outlineItem = nil;
+	CGPDFObjectRef pdfObject = nil;
+	NSInteger numberOfChild = 0;
+	if (CGPDFDictionaryGetObject(outlinesDict, "Count", &pdfObject)) {
+		CGPDFInteger pdfInterger = 0;
+		if (CGPDFObjectGetType(pdfObject) == kCGPDFObjectTypeInteger &&
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeInteger, &pdfInterger)) {
+			numberOfChild = pdfInterger;
+		}
+	}
+	
+	outlineItem = [[[PDFOutlineItem alloc] initWithChildrenCount:numberOfChild] autorelease];
+	if (CGPDFDictionaryGetObject(outlinesDict, "Title", &pdfObject)) {
+		CGPDFStringRef pdfString = nil;
+		if (CGPDFObjectGetType(pdfObject) == kCGPDFObjectTypeString && 
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeString, &pdfString)) {
+			NSString* title = (NSString*)CGPDFStringCopyTextString(pdfString);
+			outlineItem.title = title;
+			[title release];
+		}
+	}
+	
+	if (CGPDFDictionaryGetObject(outlinesDict, "Dest", &pdfObject)) {
+		CGPDFObjectType objType = CGPDFObjectGetType(pdfObject);
+		switch (objType) {
+			case kCGPDFObjectTypeName: {
+				const char* name = nil;
+				if (CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeName, &name)) {
+					CGPDFDictionaryRef pageDict = GetPageDirectoryFromDest(pdfDocument, name);
+					NSInteger pageNumber = GetPageNumberFromPageDirectory(pdfDocument, pageDict);
+                    PDFDest *dest = [[PDFDest alloc] init];
+                    dest.pageNumber = pageNumber;
+					outlineItem.dest = dest;
+                    [dest release];
+				}
+			}
+                break;
+				
+			case kCGPDFObjectTypeString: {
+				CGPDFStringRef string = nil;
+				if (CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeString, &string)) {
+					NSString* nsString = (NSString*)CGPDFStringCopyTextString(string);
+					CGPDFDictionaryRef pageDict = GetPageDirectoryFromNameTree(pdfDocument, nsString);
+					NSInteger pageNumber = GetPageNumberFromPageDirectory(pdfDocument, pageDict);
+                    PDFDest *dest = [[PDFDest alloc] init];
+                    dest.pageNumber = pageNumber;
+					outlineItem.dest = dest;
+                    [dest release];
+					[nsString release];
+				}
+			}
+                break;
+                
+            default:
+                break;
+		}
+	} else if (CGPDFDictionaryGetObject(outlinesDict, "A", &pdfObject)) {
+		CGPDFDictionaryRef dict = nil;
+		if (CGPDFObjectGetType(pdfObject) == kCGPDFObjectTypeDictionary && 
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &dict)) {
+			CGPDFDictionaryRef pageDict = GetPageDirectoryFromDictionary(dict);
+			NSInteger pageNumber = GetPageNumberFromPageDirectory(pdfDocument, pageDict);
+            PDFDest *dest = [[PDFDest alloc] init];
+            dest.pageNumber = pageNumber;
+            outlineItem.dest = dest;
+            [dest release];
+		}
+	}
+	
+	FillPDFOutlineWithDictionary(outlineItem, outlinesDict, pdfDocument);
+
+	return outlineItem;
+}
+
+
+static void FillPDFOutlineWithDictionary(PDFOutlineItem* parentItem, CGPDFDictionaryRef pdfDict, CGPDFDocumentRef pdfDocument) {
+	CGPDFObjectRef pdfObj = nil;
+	CGPDFDictionaryRef outlinesDict = nil;	
+	
+	if (!CGPDFDictionaryGetObject(pdfDict, "First", &pdfObj) || 
+		CGPDFObjectGetType(pdfObj) != kCGPDFObjectTypeDictionary ||
+		!CGPDFObjectGetValue(pdfObj, kCGPDFObjectTypeDictionary, &outlinesDict)) {
+		return;
+	}
+	
+	while (outlinesDict != nil) {
+		PDFOutlineItem* outlineItem = CreatePDFOutlineWithDictionary(outlinesDict, pdfDocument);
+		if (outlineItem) {
+			[parentItem addChildItem:outlineItem];
+		}
+		
+		if (!CGPDFDictionaryGetObject(outlinesDict, "Next", &pdfObj) || 
+			CGPDFObjectGetType(pdfObj) != kCGPDFObjectTypeDictionary ||
+			!CGPDFObjectGetValue(pdfObj, kCGPDFObjectTypeDictionary, &outlinesDict)) {
+			break;
+		}
+	}
+}
+
+static CGPDFDictionaryRef GetPageDirectoryFromDest(CGPDFDocumentRef pdfDocument, const char* dest) {
+	CGPDFDictionaryRef dict = CGPDFDocumentGetCatalog(pdfDocument);
+	if (dict == nil) {
+		return nil;
+	}
+	
+	CGPDFObjectRef pdfObject = nil;
+	CGPDFDictionaryRef destsDict = nil;	
+	if (CGPDFDictionaryGetObject(dict, "Dests", &pdfObject) &&
+		CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &destsDict)) {
+		CGPDFDictionaryRef pageDict = nil;
+		if (CGPDFDictionaryGetObject(destsDict, dest, &pdfObject) &&
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &pageDict)) {
+			CGPDFArrayRef array = nil;
+			if (CGPDFDictionaryGetObject(pageDict, "D", &pdfObject) &&
+				CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &array)) {
+				if (CGPDFArrayGetCount(array) > 0 &&
+					CGPDFArrayGetObject(array, 0, &pdfObject) &&
+					CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &pageDict)) {
+					return pageDict;
+				}
+			}
+		}
+	}
+	
+	return nil;
+}
+
+static BOOL _IsNameInPdfLimits(NSString* name, CGPDFArrayRef limitsArray) {
+	CGPDFStringRef firstLimit = nil;
+	CGPDFStringRef lastLimit = nil;
+	CGPDFObjectRef pdfObject = nil;
+	
+	if (!CGPDFArrayGetObject(limitsArray, 0, &pdfObject) ||
+		!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeString, &firstLimit)) {
+		return FALSE;
+	}
+	
+	if (!CGPDFArrayGetObject(limitsArray, 1, &pdfObject) ||
+		!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeString, &lastLimit)) {
+		return FALSE;
+	}
+	
+	BOOL result = TRUE;
+	if (result) {
+		NSString* first = (NSString*)CGPDFStringCopyTextString(firstLimit);
+		if ([name compare:first] == NSOrderedAscending) {
+			result = FALSE;
+		}
+		[first release];
+	}
+
+	if (result) {
+		NSString* last = (NSString*)CGPDFStringCopyTextString(lastLimit);
+		if ([name compare:last] == NSOrderedDescending) {
+			result = FALSE;
+		}
+		[last release];
+	}
+	
+	return result;
+}
+
+
+static CGPDFDictionaryRef GetPageDirectoryFromNameTree(CGPDFDocumentRef pdfDocument, NSString* name) {
+	CGPDFDictionaryRef dict = CGPDFDocumentGetCatalog(pdfDocument);
+	CGPDFObjectRef pdfObject = nil;
+	if (dict == nil) {
+		return nil;
+	}
+	
+	if (!CGPDFDictionaryGetObject(dict, "Names", &pdfObject) ||
+		!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &dict)) {
+		return nil;
+	}
+	
+	if (!CGPDFDictionaryGetObject(dict, "Dests", &pdfObject) ||
+		!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &dict)) {
+		return nil;
+	}
+	
+	CGPDFDictionaryRef parentDict = dict;
+	while (parentDict) {
+		CGPDFArrayRef kidsArray = nil;
+		if (!CGPDFDictionaryGetObject(parentDict, "Kids", &pdfObject) ||
+			!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &kidsArray)) {
+			break;
+		}
+		
+		parentDict = nil;
+		NSInteger kidsCount = CGPDFArrayGetCount(kidsArray);
+		for (NSInteger idx = 0; idx < kidsCount; idx++) {
+			CGPDFDictionaryRef kidDict = nil;
+			if (!CGPDFArrayGetObject(kidsArray, idx, &pdfObject) ||
+				!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &kidDict)) {
+				continue;
+			}
+			
+			CGPDFArrayRef limitsArray = nil;
+			if (!CGPDFDictionaryGetObject(kidDict, "Limits", &pdfObject) ||
+				!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &limitsArray)) {
+				continue;
+			}
+			
+			if (_IsNameInPdfLimits(name, limitsArray)) {
+				parentDict = kidDict;
+				break;
+			}
+		}
+	}
+	
+	CGPDFArrayRef namesArray = nil;
+	if (!CGPDFDictionaryGetObject(parentDict, "Names", &pdfObject) ||
+		!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &namesArray)) {
+		return nil;
+	}
+	
+	NSInteger namesCount = CGPDFArrayGetCount(namesArray);
+	CGPDFDictionaryRef pageDict = nil;
+	for (NSInteger idx = 0; idx < namesCount && !pageDict; idx += 2) {
+		CGPDFStringRef string = nil;
+		if (!CGPDFArrayGetObject(namesArray, idx, &pdfObject) ||
+			!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeString, &string)) {
+			continue;
+		}
+		
+		NSString* pdfname = (NSString*)CGPDFStringCopyTextString(string);
+		if ([pdfname isEqualToString:name]) {
+			CGPDFArrayGetObject(namesArray, idx + 1, &pdfObject);
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &pageDict);
+		}
+		[pdfname release];
+	}
+	
+	CGPDFArrayRef array = nil;
+	if (CGPDFDictionaryGetObject(pageDict, "D", &pdfObject) &&
+		CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &array)) {
+		if (CGPDFArrayGetCount(array) > 0 &&
+			CGPDFArrayGetObject(array, 0, &pdfObject) &&
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &pageDict)) {
+			return pageDict;
+		}
+	}
+	
+	return nil;
+}
+
+static CGPDFDictionaryRef GetPageDirectoryFromDictionary(CGPDFDictionaryRef pageDict) {
+	CGPDFArrayRef array = nil;
+	CGPDFObjectRef pdfObject = nil;
+	if (CGPDFDictionaryGetObject(pageDict, "D", &pdfObject) &&
+		CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &array)) {
+		if (CGPDFArrayGetCount(array) > 0 &&
+			CGPDFArrayGetObject(array, 0, &pdfObject) &&
+			CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &pageDict)) {
+			return pageDict;
+		}
+	}
+	return nil;
+}
+
+static NSInteger GetPageNumberFromPageDirectory(CGPDFDocumentRef pdfDocument, CGPDFDictionaryRef pageDict) {
+	CGPDFDictionaryRef childDict = pageDict;
+	NSInteger numberPage = 1;
+	while (childDict) {
+		CGPDFDictionaryRef parentDict = nil;
+		CGPDFObjectRef pdfObject = nil;
+		if (!CGPDFDictionaryGetObject(childDict, "Parent", &pdfObject) ||
+			!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &parentDict)) {
+			break;
+		}
+		
+		CGPDFArrayRef childArray = nil;
+		if (!CGPDFDictionaryGetObject(parentDict, "Kids", &pdfObject) ||
+			!CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeArray, &childArray)) {
+			break;
+		}
+		
+		NSInteger arrayCount = CGPDFArrayGetCount(childArray);
+		for (NSInteger idx = 0; idx < arrayCount; idx++) {
+			CGPDFDictionaryRef dict = nil;
+			if (CGPDFArrayGetObject(childArray, idx, &pdfObject) &&
+				CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeDictionary, &dict)) {
+				if (dict == childDict) {
+					break;
+				}
+				
+				NSInteger count = 1;
+				if (CGPDFDictionaryGetObject(dict, "Count", &pdfObject) &&
+					CGPDFObjectGetValue(pdfObject, kCGPDFObjectTypeInteger, &count)) {
+					numberPage += count;
+				} else {
+					numberPage += 1;
+				}
+			}
+		}
+		childDict = parentDict;
+	}
+    
+	return numberPage;
+}
+
+
