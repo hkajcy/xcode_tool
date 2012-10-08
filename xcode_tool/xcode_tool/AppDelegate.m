@@ -7,7 +7,7 @@
 //
 
 #import "AppDelegate.h"
-
+#import "KKView.h"
 @implementation AppDelegate
 
 @synthesize window = _window;
@@ -24,6 +24,10 @@
     // Override point for customization after application launch.
     self.window.backgroundColor = [UIColor whiteColor];
     [self.window makeKeyAndVisible];
+    
+    KKView* view = [[KKView alloc] init];
+    view.frame = CGRectMake(100, 100, 100, 100);
+    [self.window addSubview:view];
     return YES;
 }
 

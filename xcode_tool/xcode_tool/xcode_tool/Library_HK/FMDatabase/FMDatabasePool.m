@@ -68,7 +68,7 @@
         return;
     }
     
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         
         if ([_databaseInPool containsObject:db]) {
             [[NSException exceptionWithName:@"Database already in pool" reason:@"The FMDatabase being put back into the pool is already present in the pool" userInfo:nil] raise];
@@ -84,7 +84,7 @@
     
     __block FMDatabase *db;
     
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         db = [_databaseInPool lastObject];
         
         if (db) {
@@ -131,7 +131,7 @@
     
     __block NSInteger count;
     
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         count = [_databaseInPool count];
     }];
     
@@ -142,7 +142,7 @@
     
     __block NSInteger count;
     
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         count = [_databaseOutPool count];
     }];
     
@@ -152,7 +152,7 @@
 - (NSUInteger)countOfOpenDatabases {
     __block NSInteger count;
     
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         count = [_databaseOutPool count] + [_databaseInPool count];
     }];
     
@@ -160,7 +160,7 @@
 }
 
 - (void)releaseAllDatabases {
-    [self executeLocked:^() {
+    [self executeLocked:^(void) {
         [_databaseOutPool removeAllObjects];
         [_databaseInPool removeAllObjects];
     }];

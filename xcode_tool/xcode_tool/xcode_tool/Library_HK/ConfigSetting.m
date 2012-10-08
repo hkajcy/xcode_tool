@@ -107,6 +107,7 @@ NSAssert(k##value##_For_iPhone_Landscape,@"");
     {
         NSString* configPath = [[NSBundle mainBundle] pathForResource:@"config" ofType:@"xml"];
         NSData* configDate = [NSData dataWithContentsOfFile:configPath];
+    
         self.configXMLDoc = [[[GDataXMLDocument alloc] initWithData:configDate options:0 error:nil] autorelease];
         
         [self performSelectorInBackground:@selector(configCheck) withObject:nil];

@@ -6,15 +6,15 @@
 //  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
 //
 
-#import "View.h"
+#import "XXXView.h"
 
-@interface View (private)
+@interface XXXView (private)
 
 - (void) initPrivate;
 
 @end
 
-@implementation View
+@implementation XXXView
 
 @synthesize curOrientation;
 

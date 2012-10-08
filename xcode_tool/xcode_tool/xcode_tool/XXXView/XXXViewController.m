@@ -6,15 +6,15 @@
 //  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
 //
 
-#import "ViewController.h"
+#import "XXXViewController.h"
 
-@interface ViewController (private)
+@interface XXXViewController (private)
 
 - (void) initPrivate;
 
 @end
 
-@implementation ViewController
+@implementation XXXViewController
 
 @synthesize curOrientation;
 
