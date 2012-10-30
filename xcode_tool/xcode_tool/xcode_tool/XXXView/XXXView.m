@@ -1,39 +1,27 @@
 //
-//  ReadView.m
-//  TuShuoTianXia
+//  XXXView.m
+//  huangke
 //
 //  Created by  on 12-9-6.
-//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2012年 huangke. All rights reserved.
 //
 
 #import "XXXView.h"
 
-@interface XXXView (private)
+@interface XXXView ()
 
 - (void) initPrivate;
 
 @end
 
 @implementation XXXView
-
-@synthesize curOrientation;
-
-- (id) init
-{
-    if (self = [super init]) 
-    {
-        
-    }
-    
-    return self;
-}
-
 - (id)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
     if (self)
     {
         // Initialization code
+        [self initPrivate];
     }
     return self;
 }
@@ -44,6 +32,36 @@
     
 }
 
+#pragma mark -
+#pragma mark - setFrame
+#pragma mark -
+- (void) setFrameWithUIInterfaceOrientation:(UIInterfaceOrientation)orientation
+{
+    
+}
+
+#pragma mark -
+#pragma mark - touch
+#pragma mark -
+- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesBegan:touches withEvent:event];
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesMoved:touches withEvent:event];
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesEnded:touches withEvent:event];
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesCancelled:touches withEvent:event];
+}
 
 #pragma mark -
 #pragma mark - dealloc

@@ -1,9 +1,9 @@
 //
 //  ViewController.h
-//  let's dance
+//  huangke
 //
 //  Created by  on 12-8-31.
-//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2012年 huangke. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>

@@ -1,15 +1,15 @@
 //
-//  ReadView.h
-//  TuShuoTianXia
+//  XXXView.h
+//  huangke
 //
 //  Created by  on 12-9-6.
-//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2012年 huangke. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>
 
 @interface XXXView : UIView
 
-@property (nonatomic, assign) UIInterfaceOrientation curOrientation;
+- (void) setFrameWithUIInterfaceOrientation:(UIInterfaceOrientation)orientation;
 
 @end

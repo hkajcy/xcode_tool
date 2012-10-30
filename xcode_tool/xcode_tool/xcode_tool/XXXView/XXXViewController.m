@@ -1,14 +1,14 @@
 //
 //  ViewController.m
-//  let's dance
+//  huangke
 //
 //  Created by  on 12-8-31.
-//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2012年 huangke. All rights reserved.
 //
 
 #import "XXXViewController.h"
 
-@interface XXXViewController (private)
+@interface XXXViewController ()
 
 - (void) initPrivate;
 
@@ -23,6 +23,7 @@
     if (self = [super init])
     {
         self.curOrientation = self.interfaceOrientation;
+        [self initPrivate];
     }
     
     return self;
@@ -138,6 +139,29 @@
 - (BOOL) shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
     return (interfaceOrientation == UIInterfaceOrientationPortrait);
+}
+
+#pragma mark -
+#pragma mark - touch
+#pragma mark -
+- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesBegan:touches withEvent:event];
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesMoved:touches withEvent:event];
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesEnded:touches withEvent:event];
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesCancelled:touches withEvent:event];
 }
 
 #pragma mark -
